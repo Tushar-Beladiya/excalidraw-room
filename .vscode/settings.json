@@ -1,0 +1,4 @@
+{
+  "appService.defaultWebAppToDeploy": "/subscriptions/b1363341-c71d-4d11-b2a7-b34362e3d83c/resourceGroups/ACV/providers/Microsoft.Web/sites/whiteboard-room",
+  "appService.deploySubpath": "."
+}

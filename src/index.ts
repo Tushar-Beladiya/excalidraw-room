@@ -2,6 +2,25 @@ import debug from "debug";
 import express from "express";
 import http from "http";
 import socketIO from "socket.io";
+const CosmosClient = require("@azure/cosmos").CosmosClient;
+
+import config from "./config";
+
+const endpoint = config.endpoint;
+const key = config.key;
+
+const databaseId = config.database.id;
+const containerId = config.container.id;
+const partitionKey = { kind: "Hash", paths: ["/id"] };
+
+const options = {
+  endpoint: endpoint,
+  key: key,
+};
+
+const client = new CosmosClient(options);
+
+const database = client.database(databaseId);
 
 const serverDebug = debug("server");
 const ioDebug = debug("io");
@@ -19,7 +38,7 @@ const port = process.env.PORT || 80; // default port to listen
 app.use(express.static("public"));
 
 app.get("/", (req, res) => {
-  res.send("Excalidraw collaboration server is up :)");
+  res.send("whiteboard room!!");
 });
 
 const server = http.createServer(app);
@@ -33,7 +52,7 @@ const io = socketIO(server, {
     const headers = {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Allow-Origin":
-        (req.header && req.header.origin) || "https://excalidraw.com",
+        (req.header && req.header.origin) || "http://localhost:3000",
       "Access-Control-Allow-Credentials": true,
     };
     res.writeHead(200, headers);
@@ -75,6 +94,42 @@ io.on("connection", (socket) => {
         .emit("client-broadcast", encryptedData, iv);
     },
   );
+
+  socket.on("sendMessage", async (studentData, callback) => {
+    io.to(socket.id).emit("store-data", { roomId: socket.id, studentData });
+
+    const newItem = {
+      studentData,
+    };
+    try {
+      const { resource } = await client
+        .database(databaseId)
+        .container(containerId)
+        .items.create(newItem);
+
+      console.log("resource", resource);
+    } catch (err) {
+      console.log(err);
+    }
+    callback();
+  });
+
+  socket.on("retive-data-from-db", async (callback) => {
+    let resourceData;
+    try {
+      const { resources } = await client
+        .database(databaseId)
+        .container(containerId)
+        .items.readAll()
+        .fetchAll();
+
+      resourceData = resources;
+      io.to(socket.id).emit("retive-data", { roomId: socket.id, resources });
+    } catch (err) {
+      console.log(err);
+    }
+    callback(resourceData);
+  });
 
   socket.on("disconnecting", () => {
     const rooms = io.sockets.adapter.rooms;

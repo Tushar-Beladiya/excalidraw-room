@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@azure/cosmos": "^3.15.0",
     "@excalidraw/eslint-config": "1.0.1",
     "@excalidraw/prettier-config": "1.0.2",
     "@types/debug": "4.1.5",
