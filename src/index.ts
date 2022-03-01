@@ -33,7 +33,7 @@ require("dotenv").config(
 );
 
 const app = express();
-const port = 4000; // default port to listen
+const port = process.env.PORT || 8080; // default port to listen
 
 app.use(express.static("public"));
 
@@ -95,33 +95,33 @@ io.on("connection", (socket) => {
     },
   );
 
-  socket.on("sendMessage", async (lessonId, studentData, callback) => {
+  socket.on("sendMessage", async (roomID, lessonId, studentData, callback) => {
     const newItem = {
       id: lessonId,
       data: [...studentData],
     };
-    console.log("studentData==========", studentData);
-    io.to(socket.id).emit("store-data", { roomId: socket.id, studentData });
+    io.to(roomID).emit("store-data", {
+      roomId: roomID,
+      studentData,
+    });
 
     try {
       const { resource } = await client
         .database(databaseId)
         .container(containerId)
         .items.upsert(newItem, {});
-
-      console.log("resource", resource);
     } catch (err) {
       console.log(err);
     }
-    callback();
+    callback(newItem);
   });
 
   socket.on("retive-data-from-db", async (lessonId, callback) => {
-    console.log("LessonId", lessonId);
+    console.log("retive-data-from-db");
     let resourceData;
     try {
       const querySpec = {
-        query: `SELECT * from c`,
+        query: `SELECT * from c where c.id = "${lessonId}"`,
       };
 
       const { resources: items } = await await client
@@ -135,7 +135,7 @@ io.on("connection", (socket) => {
       //   .items.readAll()
       //   .fetchAll({ id: lessonId });
 
-      resourceData = items;
+      resourceData = items[0].data;
       io.to(socket.id).emit("retive-data", { roomId: socket.id, items });
     } catch (err) {
       console.log(err);
